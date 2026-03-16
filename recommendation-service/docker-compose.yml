@@ -1,0 +1,10 @@
+services:
+  recommendation-api:
+    build:
+      context: .
+    container_name: recommendation_api
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
