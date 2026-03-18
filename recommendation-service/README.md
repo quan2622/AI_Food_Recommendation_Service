@@ -1,14 +1,20 @@
 # Food Recommendation Service
 
-Standalone FastAPI microservice for food recommendations. The service reads from the current PostgreSQL database, exposes recommendation APIs, and keeps the recommendation logic isolated so the ranking engine can later be replaced with ML or AI models.
+Standalone FastAPI microservice for nutrition-aware food recommendations. The service reads from the current PostgreSQL schema and applies a phase-based recommendation pipeline aligned with the nutrition domain.
 
-## Features
+## Current Scope
 
-- FastAPI API surface for recommendation, health, and feedback
-- Read-only PostgreSQL access with schema discovery for common food-platform table names
-- Hybrid recommendation pipeline with popularity, content match, user-profile affinity, and context scoring
-- Short-lived in-memory cache for repeated requests
-- Docker-ready deployment and basic tests
+The current implementation is aligned with Phase 1 of the SDD and includes a Phase 2-ready collaborative signal:
+
+- real-time remaining nutrition from `NutritionGoal` and today's `MealItem` consumption
+- food vectors from `FoodNutritionProfile` and `FoodNutritionValue`
+- allergy hard filter from `UserAllergy` and ingredient allergens
+- meal-type affinity learned from `Meal -> MealItem` history
+- repeat penalty over the recent meal history
+- portion optimizer based on remaining calories
+- diversity cap and new-item exploration slot
+- collaborative score foundation from implicit user-item history
+- in-memory cache for repeated collaborative score lookups
 
 ## Endpoints
 
@@ -16,6 +22,49 @@ Standalone FastAPI microservice for food recommendations. The service reads from
 - `GET /v1/recommendations`
 - `POST /v1/recommendations/query`
 - `POST /v1/feedback`
+
+## Request Model
+
+`GET /v1/recommendations`
+
+Query params:
+- `user_id`
+- `meal_type` (`BREAKFAST | LUNCH | DINNER | SNACK`)
+- `current_time` (optional ISO datetime)
+- `limit`
+- `exclude_food_ids`
+- `meal_affinity_threshold`
+
+## Recommendation Strategy
+
+The runtime pipeline is:
+
+1. Load user context
+   - active goal
+   - consumed nutrition today
+   - allergies
+   - repeat counts
+   - total meal logs
+2. Load food candidates
+   - food metadata
+   - category
+   - nutrition per 100g
+   - allergens
+   - meal affinity
+3. Hard filters
+   - allergen exclusion
+   - meal affinity threshold
+   - missing nutrition exclusion
+4. Parallel scoring
+   - content-based score from remaining nutrition vector and food nutrition vector
+   - collaborative score from implicit history and similar users
+5. Hybrid score
+   - dynamic weights by user maturity
+   - repeat penalty subtraction
+6. Rerank
+   - diversity cap per category
+   - new-item slot around rank #3
+7. Build explainable response
 
 ## Local Run
 
@@ -34,13 +83,11 @@ DATABASE_URL="postgresql://postgres:123456@192.168.30.128:5432/ai_food_db?schema
 SERVER_PORT=8081
 ```
 
-## Recommendation Strategy
+## Remaining Gaps
 
-The default strategy is a lightweight hybrid ranker:
+These parts still need infrastructure or upstream schema work outside this repo:
 
-- popularity/trending fallback
-- content-based similarity on category, cuisine, tags, and price
-- user-profile affinity from past interactions when available
-- context score based on meal time and request filters
-
-When the current database schema does not expose expected interaction tables, the service falls back to popularity plus content/context signals instead of failing.
+- add `targetFiber` to `nutrition_goals` for full fiber target support
+- add workout/burned-calorie source if dynamic TDEE is required
+- replace in-memory cache with Redis for production
+- add pgvector / ALS pipeline for large-scale collaborative filtering

@@ -3,7 +3,22 @@ from fastapi.testclient import TestClient
 from app.core.dependencies import get_recommendation_service
 from app.main import app
 from app.schemas.request import FeedbackRequest, RecommendationRequest
-from app.schemas.response import FeedbackResponse, HealthResponse, RecommendationResponse, RecommendedItem
+from app.schemas.response import (
+    CategorySummary,
+    FeedbackResponse,
+    GoalAlignment,
+    HealthAnalysis,
+    HealthResponse,
+    Macronutrients,
+    NutritionSummary,
+    Pagination,
+    RecommendationContext,
+    RecommendationData,
+    RecommendationResponse,
+    RecommendedItem,
+    ResponseMetadata,
+    UserContextPayload,
+)
 
 
 class StubService:
@@ -12,20 +27,41 @@ class StubService:
 
     def get_recommendations(self, request: RecommendationRequest) -> RecommendationResponse:
         return RecommendationResponse(
-            trace_id="trace-1",
-            strategy="hybrid-cold-start",
-            generated_at="2026-03-16T00:00:00Z",
-            items=[
-                RecommendedItem(
-                    food_id="1",
-                    name="Pho",
-                    category="Noodle",
-                    cuisine="Vietnamese",
-                    price=45000,
-                    score=0.88,
-                    reason="Trending among users",
-                )
-            ],
+            metadata=ResponseMetadata(
+                statusCode=200,
+                message="ok",
+                EC=0,
+                timestamp="2026-03-18T00:00:00Z",
+                pagination=Pagination(total_items=1),
+            ),
+            data=RecommendationData(
+                recommendation_strategy="content-based-filtering",
+                user_context=UserContextPayload(calories_remaining=500, burned_calories_today=0, allergy_warnings=[]),
+                items=[
+                    RecommendedItem(
+                        id=1,
+                        foodName="Pho",
+                        description="test",
+                        imageUrl=None,
+                        category=CategorySummary(id=10, name="Mon nuoc"),
+                        recommendation_context=RecommendationContext(
+                            score=0.88,
+                            reason="Phu hop nhu cau dinh duong",
+                            tags=["High Protein"],
+                        ),
+                        nutrition=NutritionSummary(
+                            calories=450,
+                            macronutrients=Macronutrients(protein=30, carbs=40, fat=10, fiber=2),
+                            suggested_portion_grams=200,
+                        ),
+                        health_analysis=HealthAnalysis(
+                            is_safe=True,
+                            allergens_detected=[],
+                            goal_alignment=GoalAlignment(calories="Optimized", protein="Excellent", fat="Good", fiber="Normal"),
+                        ),
+                    )
+                ],
+            ),
         )
 
     def accept_feedback(self, feedback: FeedbackRequest) -> FeedbackResponse:
@@ -43,17 +79,18 @@ def test_health_endpoint():
 
 
 def test_recommendations_endpoint():
-    response = client.get("/v1/recommendations", params={"limit": 1})
+    response = client.get("/v1/recommendations", params={"limit": 1, "meal_type": "lunch"})
     assert response.status_code == 200
     payload = response.json()
-    assert payload["strategy"] == "hybrid-cold-start"
-    assert len(payload["items"]) == 1
+    assert payload["data"]["recommendation_strategy"] == "content-based-filtering"
+    assert len(payload["data"]["items"]) == 1
+    assert payload["data"]["items"][0]["foodName"] == "Pho"
 
 
 def test_feedback_endpoint():
     response = client.post(
         "/v1/feedback",
-        json={"food_id": "1", "event_type": "click", "user_id": "u-1"},
+        json={"food_id": 1, "event_type": "click", "user_id": 1},
     )
     assert response.status_code == 202
     assert response.json()["accepted"] is True

@@ -2,10 +2,10 @@ from app.db.repositories.recommendation_repository import RecommendationReposito
 
 
 def refresh_stats(repository: RecommendationRepository) -> dict[str, int]:
-    catalog = repository.load_catalog(limit=500)
-    summary = repository.summarize_catalog(catalog)
+    summary = repository.summarize_food_catalog(limit=500)
     return {
-        "foods": len(catalog),
-        "categories": len(summary["categories"]),
-        "cuisines": len(summary["cuisines"]),
+        "foods": int(summary.get("foods", 0)),
+        "categories": int(summary.get("categories", 0)),
+        "foods_with_nutrition": int(summary.get("foods_with_nutrition", 0)),
+        "new_items_7d": int(summary.get("new_items_7d", 0)),
     }

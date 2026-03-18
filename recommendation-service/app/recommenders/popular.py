@@ -1,8 +1,6 @@
-from app.db.repositories.recommendation_repository import FoodRecord
+from app.db.repositories.recommendation_repository import FoodCandidate
 
 
 class PopularRecommender:
-    def score(self, food: FoodRecord) -> float:
-        popularity = min(food.popularity / 100 if food.popularity else 0.0, 1.0)
-        rating = min(food.rating / 5 if food.rating else 0.0, 1.0)
-        return popularity * 0.7 + rating * 0.3
+    def score(self, food: FoodCandidate) -> float:
+        return min(food.popularity_count / 20, 1.0)

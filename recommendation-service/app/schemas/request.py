@@ -1,23 +1,29 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, field_validator
+
+
+MealTypeLiteral = Literal["BREAKFAST", "LUNCH", "DINNER", "SNACK"]
 
 
 class RecommendationRequest(BaseModel):
-    user_id: str | None = None
+    user_id: int | None = None
+    meal_type: MealTypeLiteral
+    current_time: datetime | None = None
     limit: int = Field(default=10, ge=1, le=50)
-    category: str | None = None
-    cuisine: str | None = None
-    meal_time: Literal["breakfast", "lunch", "dinner", "snack"] | None = None
-    dietary_tags: list[str] = Field(default_factory=list)
-    exclude_ids: list[str] = Field(default_factory=list)
-    location: str | None = None
+    exclude_food_ids: list[int] = Field(default_factory=list)
+    meal_affinity_threshold: float = Field(default=0.15, ge=0, le=1)
+
+    @field_validator("meal_type", mode="before")
+    @classmethod
+    def normalize_meal_type(cls, value: str) -> str:
+        return str(value).upper()
 
 
 class FeedbackRequest(BaseModel):
-    user_id: str | None = None
-    food_id: str
+    user_id: int | None = None
+    food_id: int
     event_type: Literal["impression", "click", "favorite", "order", "rating"]
     rating: float | None = Field(default=None, ge=0, le=5)
     timestamp: datetime | None = None

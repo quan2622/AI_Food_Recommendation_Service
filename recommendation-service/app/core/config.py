@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     recommendation_cache_ttl_seconds: int = 120
     candidate_limit: int = 200
     default_limit: int = 10
+    new_item_window_days: int = 7
+    repeat_penalty_window_days: int = 7
+    repeat_penalty_threshold: int = 3
+    meal_affinity_default_threshold: float = 0.15
+    collaborative_neighbors: int = 20
+    collaborative_min_shared_items: int = 1
+    collaborative_history_limit: int = 200
 
     model_config = SettingsConfigDict(
         env_file=".env",

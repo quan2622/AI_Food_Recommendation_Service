@@ -1,22 +1,20 @@
-from app.db.repositories.recommendation_repository import FoodRecord
-from app.schemas.request import RecommendationRequest
+from app.db.repositories.recommendation_repository import FoodCandidate, UserContextRecord
 
 
-def apply_filters(catalog: list[FoodRecord], request: RecommendationRequest) -> list[FoodRecord]:
-    excluded = set(request.exclude_ids)
-    dietary_tags = {tag.lower() for tag in request.dietary_tags}
-    filtered: list[FoodRecord] = []
-
+def apply_filters(
+    catalog: list[FoodCandidate],
+    user_context: UserContextRecord,
+    meal_type: str,
+    meal_affinity_threshold: float,
+) -> list[FoodCandidate]:
+    allergy_set = {value.lower() for value in user_context.allergy_warnings}
+    filtered: list[FoodCandidate] = []
     for food in catalog:
-        if food.food_id in excluded:
+        if allergy_set.intersection({allergen.lower() for allergen in food.allergens}):
             continue
-        if not food.available:
+        if food.meal_affinity.get(meal_type, 0.25) < meal_affinity_threshold:
             continue
-        if request.category and (food.category or "").lower() != request.category.lower():
-            continue
-        if request.cuisine and (food.cuisine or "").lower() != request.cuisine.lower():
-            continue
-        if dietary_tags and not dietary_tags.issubset({tag.lower() for tag in food.tags}):
+        if food.nutrition.calories <= 0:
             continue
         filtered.append(food)
     return filtered

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query
 
 from app.core.dependencies import get_recommendation_service
@@ -10,25 +12,21 @@ router = APIRouter(prefix="/v1", tags=["recommendations"])
 
 @router.get("/recommendations", response_model=RecommendationResponse)
 def get_recommendations(
-    user_id: str | None = None,
+    user_id: int | None = None,
+    meal_type: str = Query(..., description="BREAKFAST | LUNCH | DINNER | SNACK"),
+    current_time: datetime | None = None,
     limit: int = Query(default=10, ge=1, le=50),
-    category: str | None = None,
-    cuisine: str | None = None,
-    meal_time: str | None = None,
-    dietary_tags: list[str] = Query(default=[]),
-    exclude_ids: list[str] = Query(default=[]),
-    location: str | None = None,
+    exclude_food_ids: list[int] = Query(default=[]),
+    meal_affinity_threshold: float = Query(default=0.15, ge=0, le=1),
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> RecommendationResponse:
     request = RecommendationRequest(
         user_id=user_id,
+        meal_type=meal_type,
+        current_time=current_time,
         limit=limit,
-        category=category,
-        cuisine=cuisine,
-        meal_time=meal_time,
-        dietary_tags=dietary_tags,
-        exclude_ids=exclude_ids,
-        location=location,
+        exclude_food_ids=exclude_food_ids,
+        meal_affinity_threshold=meal_affinity_threshold,
     )
     return service.get_recommendations(request)
 

@@ -1,13 +1,12 @@
-from app.db.repositories.recommendation_repository import FoodRecord
+from app.db.repositories.recommendation_repository import FoodCandidate
 
 
-def build_food_tokens(food: FoodRecord) -> set[str]:
+def build_food_tokens(food: FoodCandidate) -> set[str]:
     tokens: set[str] = set()
-    for value in [food.category, food.cuisine, food.meal_time]:
-        if value:
-            tokens.add(value.strip().lower())
-    for tag in food.tags:
-        tokens.add(tag.lower())
+    if food.category.name:
+        tokens.add(food.category.name.lower())
     if food.description:
         tokens.update(word.lower() for word in food.description.split()[:20])
+    for allergen in food.allergens:
+        tokens.add(allergen.lower())
     return tokens
