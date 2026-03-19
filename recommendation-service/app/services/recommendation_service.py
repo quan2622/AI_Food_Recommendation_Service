@@ -105,6 +105,12 @@ class RecommendationService:
                 ),
                 user_context=UserContextPayload(
                     calories_remaining=round(user_context.remaining_nutrition.calories, 2),
+                    macronutrients_remaining=Macronutrients(
+                        protein=round(user_context.remaining_nutrition.protein, 2),
+                        carbs=round(user_context.remaining_nutrition.carbs, 2),
+                        fat=round(user_context.remaining_nutrition.fat, 2),
+                        fiber=round(user_context.remaining_nutrition.fiber, 2),
+                    ),
                     burned_calories_today=round(user_context.burned_calories_today, 2),
                     allergy_warnings=user_context.allergy_warnings,
                 ),

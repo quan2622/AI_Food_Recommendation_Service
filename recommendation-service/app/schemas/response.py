@@ -71,6 +71,7 @@ class RecommendedItem(BaseModel):
 
 class UserContextPayload(BaseModel):
     calories_remaining: float = 0.0
+    macronutrients_remaining: Macronutrients = Field(default_factory=Macronutrients)
     burned_calories_today: float = 0.0
     allergy_warnings: list[str] = Field(default_factory=list)
 
