@@ -18,6 +18,7 @@ from app.schemas.response import (
     RecommendedItem,
     ResponseMetadata,
     UserContextPayload,
+    UserSummaryPayload,
 )
 
 
@@ -36,6 +37,7 @@ class StubService:
             ),
             data=RecommendationData(
                 recommendation_strategy="content-based-filtering",
+                user=UserSummaryPayload(id=1, name="Test User"),
                 user_context=UserContextPayload(calories_remaining=500, burned_calories_today=0, allergy_warnings=[]),
                 items=[
                     RecommendedItem(
@@ -83,6 +85,8 @@ def test_recommendations_endpoint():
     assert response.status_code == 200
     payload = response.json()
     assert payload["data"]["recommendation_strategy"] == "content-based-filtering"
+    assert payload["data"]["user"]["id"] == 1
+    assert payload["data"]["user"]["name"] == "Test User"
     assert len(payload["data"]["items"]) == 1
     assert payload["data"]["items"][0]["foodName"] == "Pho"
 
@@ -94,3 +98,4 @@ def test_feedback_endpoint():
     )
     assert response.status_code == 202
     assert response.json()["accepted"] is True
+

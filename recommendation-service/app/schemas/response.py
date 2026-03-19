@@ -75,8 +75,14 @@ class UserContextPayload(BaseModel):
     allergy_warnings: list[str] = Field(default_factory=list)
 
 
+class UserSummaryPayload(BaseModel):
+    id: int | None = None
+    name: str | None = None
+
+
 class RecommendationData(BaseModel):
     recommendation_strategy: str
+    user: UserSummaryPayload
     user_context: UserContextPayload
     items: list[RecommendedItem]
 
@@ -95,3 +101,4 @@ class HealthResponse(BaseModel):
 class FeedbackResponse(BaseModel):
     accepted: bool
     trace_id: str
+

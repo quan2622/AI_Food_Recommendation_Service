@@ -23,6 +23,7 @@ from app.schemas.response import (
     RecommendedItem,
     ResponseMetadata,
     UserContextPayload,
+    UserSummaryPayload,
 )
 from app.services.cache_service import CacheService
 
@@ -91,6 +92,10 @@ class RecommendationService:
             ),
             data=RecommendationData(
                 recommendation_strategy=strategy,
+                user=UserSummaryPayload(
+                    id=user_context.user_id,
+                    name=user_context.user_name,
+                ),
                 user_context=UserContextPayload(
                     calories_remaining=round(user_context.remaining_nutrition.calories, 2),
                     burned_calories_today=round(user_context.burned_calories_today, 2),
@@ -337,3 +342,4 @@ class RecommendationService:
     def _cf_cache_key(user_id: int, candidate_ids: list[int]) -> str:
         suffix = ",".join(str(item_id) for item_id in sorted(candidate_ids)[:50])
         return f"cf:{user_id}:{suffix}"
+

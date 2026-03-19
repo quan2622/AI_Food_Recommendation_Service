@@ -48,6 +48,7 @@ class FoodCandidate:
 @dataclass
 class UserContextRecord:
     user_id: int | None
+    user_name: str | None = None
     goal_type: str = "MAINTENANCE"
     target_nutrition: NutritionVector = field(default_factory=NutritionVector)
     consumed_today: NutritionVector = field(default_factory=NutritionVector)
@@ -76,6 +77,12 @@ class RecommendationRepository:
         if user_id is None:
             return context
 
+        user_summary = self._fetch_user_summary(user_id)
+        if not user_summary:
+            return context
+
+        context.user_id = int(user_summary["id"])
+        context.user_name = user_summary.get("name")
         current_date = current_time.date()
         goal_row = self._fetch_active_goal(user_id, current_date)
         consumed_row = self._fetch_consumed_today(user_id, current_date)
@@ -278,6 +285,40 @@ class RecommendationRepository:
             "new_items_7d": sum(1 for food in foods if food.created_at and self._normalize_dt(food.created_at) >= datetime.now().replace(microsecond=0) - timedelta(days=7)),
         }
 
+    def _fetch_user_summary(self, user_id: int) -> dict[str, Any] | None:
+        name_expr: str
+        if self._has_column("users", "fullName"):
+            name_expr = 'u."fullName"'
+        elif self._has_column("users", "displayName"):
+            name_expr = 'u."displayName"'
+        elif self._has_column("users", "username"):
+            name_expr = 'u.username'
+        elif self._has_column("users", "name"):
+            name_expr = 'u.name'
+        elif self._has_column("users", "firstName") and self._has_column("users", "lastName"):
+            name_expr = "TRIM(CONCAT(COALESCE(u.\"firstName\", ''), ' ', COALESCE(u.\"lastName\", '')))"
+        elif self._has_column("users", "firstName"):
+            name_expr = 'u."firstName"'
+        elif self._has_column("users", "lastName"):
+            name_expr = 'u."lastName"'
+        else:
+            name_expr = 'NULL'
+
+        sql = text(
+            f"""
+            SELECT u.id, {name_expr} AS name
+            FROM {self._table('users')} u
+            WHERE u.id = :user_id
+            LIMIT 1
+            """
+        )
+        try:
+            with self.engine.connect() as connection:
+                row = connection.execute(sql, {"user_id": user_id}).mappings().first()
+            return dict(row) if row else None
+        except Exception:
+            return None
+
     def _fetch_active_goal(self, user_id: int, current_date: date) -> dict[str, Any] | None:
         target_fiber_expr = 'ng."targetFiber"' if self._has_column("nutrition_goals", "targetFiber") else '0'
         sql = text(
@@ -451,3 +492,4 @@ class RecommendationRepository:
 
     def _table(self, table_name: str) -> str:
         return f'"{self.schema}"."{table_name}"'
+
