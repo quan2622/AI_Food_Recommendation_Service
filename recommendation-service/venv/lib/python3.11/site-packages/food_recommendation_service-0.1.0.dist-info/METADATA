@@ -1,0 +1,109 @@
+Metadata-Version: 2.4
+Name: food-recommendation-service
+Version: 0.1.0
+Summary: Standalone FastAPI microservice for food recommendations
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0.0,>=0.115.0
+Requires-Dist: uvicorn[standard]<1.0.0,>=0.30.0
+Requires-Dist: sqlalchemy<3.0.0,>=2.0.0
+Requires-Dist: psycopg[binary]<4.0.0,>=3.2.0
+Requires-Dist: pydantic<3.0.0,>=2.8.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.4.0
+Provides-Extra: dev
+Requires-Dist: httpx<1.0.0,>=0.27.0; extra == "dev"
+Requires-Dist: pytest<9.0.0,>=8.0.0; extra == "dev"
+
+# Food Recommendation Service
+
+Standalone FastAPI microservice for nutrition-aware food recommendations. The service reads from the current PostgreSQL schema and applies a phase-based recommendation pipeline aligned with the nutrition domain.
+
+## Current Scope
+
+The current implementation is aligned with Phase 1 of the SDD and includes a Phase 2-ready collaborative signal:
+
+- real-time remaining nutrition from `NutritionGoal` and today's `MealItem` consumption
+- food vectors from `FoodNutritionProfile` and `FoodNutritionValue`
+- allergy hard filter from `UserAllergy` and ingredient allergens
+- meal-type affinity learned from `Meal -> MealItem` history
+- repeat penalty over the recent meal history
+- portion optimizer based on remaining calories
+- diversity cap and new-item exploration slot
+- collaborative score foundation from implicit user-item history
+- in-memory cache for repeated collaborative score lookups
+
+## Endpoints
+
+- `GET /health`
+- `GET /v1/recommendations`
+- `POST /v1/recommendations/query`
+- `POST /v1/feedback`
+
+## Request Model
+
+`GET /v1/recommendations`
+
+Query params:
+- `user_id`
+- `meal_type` (`BREAKFAST | LUNCH | DINNER | SNACK`)
+- `current_time` (optional ISO datetime)
+- `limit`
+- `exclude_food_ids`
+- `meal_affinity_threshold`
+
+## Recommendation Strategy
+
+The runtime pipeline is:
+
+1. Load user context
+   - active goal
+   - consumed nutrition today
+   - allergies
+   - repeat counts
+   - total meal logs
+2. Load food candidates
+   - food metadata
+   - category
+   - nutrition per 100g
+   - allergens
+   - meal affinity
+3. Hard filters
+   - allergen exclusion
+   - meal affinity threshold
+   - missing nutrition exclusion
+4. Parallel scoring
+   - content-based score from remaining nutrition vector and food nutrition vector
+   - collaborative score from implicit history and similar users
+5. Hybrid score
+   - dynamic weights by user maturity
+   - repeat penalty subtraction
+6. Rerank
+   - diversity cap per category
+   - new-item slot around rank #3
+7. Build explainable response
+
+## Local Run
+
+```bash
+pip install -e .[dev]
+uvicorn app.main:app --host 192.168.30.128 --port 8081
+```
+
+## Environment
+
+The service reads configuration from `.env`:
+
+```env
+SERVER_HOST=192.168.30.128
+DATABASE_URL="postgresql://postgres:123456@192.168.30.128:5432/ai_food_db?schema=public"
+SERVER_PORT=8081
+```
+
+## Remaining Gaps
+
+These parts still need infrastructure or upstream schema work outside this repo:
+
+- add `targetFiber` to `nutrition_goals` for full fiber target support
+- add workout/burned-calorie source if dynamic TDEE is required
+- replace in-memory cache with Redis for production
+- add pgvector / ALS pipeline for large-scale collaborative filtering
