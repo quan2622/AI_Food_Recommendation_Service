@@ -360,7 +360,10 @@ class RecommendationRepository:
             JOIN {self._table('meals')} m ON m."dailyLogId" = dl.id
             JOIN {self._table('meal_items')} mi ON mi."mealId" = m.id
             WHERE dl."userId" = :user_id
-              AND dl."logDate" = :current_date
+              AND (
+                  DATE(m."mealDateTime") = :current_date
+                  OR DATE(dl."logDate") = :current_date
+              )
             """
         )
         try:
