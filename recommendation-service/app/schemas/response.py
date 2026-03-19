@@ -14,7 +14,7 @@ class ResponseMetadata(BaseModel):
     message: str
     ec: int = Field(alias="EC")
     timestamp: datetime
-    pagination: Pagination
+    pagination: Pagination | None = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -89,7 +89,7 @@ class RecommendationData(BaseModel):
 
 class RecommendationResponse(BaseModel):
     metadata: ResponseMetadata
-    data: RecommendationData
+    data: RecommendationData | None = None
 
 
 class HealthResponse(BaseModel):

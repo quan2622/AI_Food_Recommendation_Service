@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+import logging
 from uuid import uuid4
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import Settings
 from app.db.repositories.recommendation_repository import FoodCandidate, RecommendationRepository, UserContextRecord
@@ -43,6 +46,10 @@ class RecommendationService:
     def get_recommendations(self, request: RecommendationRequest) -> RecommendationResponse:
         current_time = self._ensure_aware(request.current_time or datetime.now(timezone.utc))
         user_context = self.repository.load_user_context(request.user_id, current_time)
+        if user_context is None:
+            logger.warning(f"User not found: {request.user_id}")
+            return self.error_response_user_not_found(current_time)
+
         candidates = self.repository.load_food_candidates(self.settings.candidate_limit)
         candidates = [food for food in candidates if food.food_id not in set(request.exclude_food_ids)]
         filtered = self._apply_hard_filters(
@@ -115,6 +122,19 @@ class RecommendationService:
 
     def accept_feedback(self, feedback: FeedbackRequest) -> FeedbackResponse:
         return FeedbackResponse(accepted=True, trace_id=str(uuid4()))
+
+    @staticmethod
+    def error_response_user_not_found(current_time: datetime) -> RecommendationResponse:
+        return RecommendationResponse(
+            metadata=ResponseMetadata(
+                statusCode=404,
+                message="User không tồn tại",
+                EC=1001,
+                timestamp=current_time,
+                pagination=None,
+            ),
+            data=None,
+        )
 
     def _load_collaborative_scores(self, user_id: int | None, candidates: list[FoodCandidate]) -> dict[int, float]:
         if user_id is None or not candidates:

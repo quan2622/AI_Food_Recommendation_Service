@@ -72,15 +72,17 @@ class RecommendationRepository:
         except Exception:
             return False
 
-    def load_user_context(self, user_id: int | None, current_time: datetime) -> UserContextRecord:
-        context = UserContextRecord(user_id=user_id)
+    def load_user_context(self, user_id: int | None, current_time: datetime) -> UserContextRecord | None:
         if user_id is None:
-            return context
+            # Guest mode: user_id is not provided
+            return UserContextRecord(user_id=None)
 
         user_summary = self._fetch_user_summary(user_id)
         if not user_summary:
-            return context
+            # Error mode: user_id provided but not found in DB
+            return None
 
+        context = UserContextRecord(user_id=user_id)
         context.user_id = int(user_summary["id"])
         context.user_name = user_summary.get("name")
         current_date = current_time.date()
