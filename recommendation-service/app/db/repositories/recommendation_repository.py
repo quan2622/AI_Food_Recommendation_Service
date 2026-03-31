@@ -10,7 +10,7 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
-MEAL_TYPES = ("BREAKFAST", "LUNCH", "DINNER", "SNACK")
+MEAL_TYPES = ("MEAL_BREAKFAST", "MEAL_LUNCH", "MEAL_DINNER", "MEAL_SNACK")
 
 
 @dataclass
@@ -334,9 +334,9 @@ class RecommendationRepository:
                 {target_fiber_expr} AS "targetFiber"
             FROM {self._table('nutrition_goals')} ng
             WHERE ng."userId" = :user_id
-              AND DATE(ng."startDay") <= :current_date
+              AND DATE(ng."startDate") <= :current_date
               AND DATE(ng."endDate") >= :current_date
-            ORDER BY ng."startDay" DESC, ng.id DESC
+            ORDER BY ng."startDate" DESC, ng.id DESC
             LIMIT 1
             """
         )

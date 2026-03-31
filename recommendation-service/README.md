@@ -28,12 +28,14 @@ The current implementation is aligned with Phase 1 of the SDD and includes a Pha
 `GET /v1/recommendations`
 
 Query params:
+
 - `user_id`
 - `meal_type` (`BREAKFAST | LUNCH | DINNER | SNACK`)
 - `current_time` (optional ISO datetime)
 - `limit`
 - `exclude_food_ids`
 - `meal_affinity_threshold`
+- `nutrition_priority` (`BALANCED | HIGH_PROTEIN | HIGH_CARBS | HIGH_FAT | HIGH_FIBER`)
 
 ## Recommendation Strategy
 
@@ -91,3 +93,13 @@ These parts still need infrastructure or upstream schema work outside this repo:
 - add workout/burned-calorie source if dynamic TDEE is required
 - replace in-memory cache with Redis for production
 - add pgvector / ALS pipeline for large-scale collaborative filtering
+
+./venv/bin/python -m pytest tests/ -v --tb=short
+
+Mức boost:
+
+- BALANCED → 1.0 (không boost)
+- HIGH_PROTEIN → 1.0 + (0.5 × protein_norm)
+- HIGH_CARBS → 1.0 + (0.5 × carbs_norm)
+- HIGH_FAT → 1.0 + (0.5 × fat_norm)
+- HIGH_FIBER → 1.0 + (0.5 × fiber_norm)

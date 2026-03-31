@@ -78,6 +78,7 @@ class RecommendationService:
                 request.meal_type,
                 collaborative_score=collaborative_scores.get(food.food_id, 0.0),
                 repeat_threshold=self.settings.repeat_penalty_threshold,
+                nutrition_priority=request.nutrition_priority,
             )
             reason, tags = self._build_reason_and_tags(food, user_context, breakdown, current_time)
             scored.append((food, breakdown, reason, tags))

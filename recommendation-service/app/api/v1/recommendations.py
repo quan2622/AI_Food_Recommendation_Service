@@ -19,6 +19,7 @@ def get_recommendations(
     limit: int = Query(default=10, ge=1, le=50),
     exclude_food_ids: list[int] = Query(default=[]),
     meal_affinity_threshold: float = Query(default=0.15, ge=0, le=1),
+    nutrition_priority: str = Query(default="BALANCED", description="BALANCED | HIGH_PROTEIN | HIGH_CARBS | HIGH_FAT | HIGH_FIBER"),
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> RecommendationResponse:
     request = RecommendationRequest(
@@ -28,6 +29,7 @@ def get_recommendations(
         limit=limit,
         exclude_food_ids=exclude_food_ids,
         meal_affinity_threshold=meal_affinity_threshold,
+        nutrition_priority=nutrition_priority,
     )
     result = service.get_recommendations(request)
     if result.metadata.status_code != 200:

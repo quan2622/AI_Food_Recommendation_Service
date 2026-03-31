@@ -26,8 +26,9 @@ class HybridRecommender:
         meal_type: str,
         collaborative_score: float = 0.0,
         repeat_threshold: int = 3,
+        nutrition_priority: str = "BALANCED",
     ) -> ScoreBreakdown:
-        content_score = self._content_score(food, context, meal_type)
+        content_score = self._content_score(food, context, meal_type, nutrition_priority)
         repeat_penalty = self._repeat_penalty(food.food_id, context, repeat_threshold)
         alpha, beta, gamma = self._dynamic_weights(context.total_logs, context.goal_type, collaborative_score > 0)
         final_score = max(0.0, min(alpha * content_score + beta * collaborative_score - gamma * repeat_penalty, 1.0))
@@ -42,13 +43,21 @@ class HybridRecommender:
             gamma=gamma,
         )
 
-    def _content_score(self, food: FoodCandidate, context: UserContextRecord, meal_type: str) -> float:
+    def _content_score(self, food: FoodCandidate, context: UserContextRecord, meal_type: str, nutrition_priority: str = "BALANCED") -> float:
         remaining = context.remaining_nutrition.as_list()
         nutrition = food.nutrition.as_list()
         cosine = self._cosine_similarity(remaining, nutrition)
+        
+        # When remaining nutrition is 0, cosine = 0, use nutrition priority as base score
+        if cosine == 0.0 and sum(remaining) == 0:
+            base_score = 0.3  # Base score when no remaining nutrition
+        else:
+            base_score = cosine
+            
         goal_multiplier = self._goal_multiplier(context.goal_type, food)
         meal_affinity = food.meal_affinity.get(meal_type, 0.25)
-        return max(0.0, min(cosine * goal_multiplier * meal_affinity, 1.0))
+        nutrition_priority_multiplier = self._nutrition_priority_multiplier(nutrition_priority, food)
+        return max(0.0, min(base_score * goal_multiplier * meal_affinity * nutrition_priority_multiplier, 1.0))
 
     @staticmethod
     def _repeat_penalty(food_id: int, context: UserContextRecord, threshold: int = 3) -> float:
@@ -63,6 +72,23 @@ class HybridRecommender:
             return 0.0
         dot = sum(a * b for a, b in zip(left, right, strict=False))
         return max(0.0, min(dot / (left_norm * right_norm), 1.0))
+
+    @staticmethod
+    def _nutrition_priority_multiplier(nutrition_priority: str, food: FoodCandidate) -> float:
+        """Boost score based on nutrition priority preference."""
+        protein_norm = min(food.nutrition.protein / 50, 1.0)
+        carbs_norm = min(food.nutrition.carbs / 80, 1.0)
+        fat_norm = min(food.nutrition.fat / 35, 1.0)
+        fiber_norm = min(food.nutrition.fiber / 14, 1.0)
+
+        priority_multipliers = {
+            "BALANCED": 1.0,
+            "HIGH_PROTEIN": 1.0 + (0.5 * protein_norm),
+            "HIGH_CARBS": 1.0 + (0.5 * carbs_norm),
+            "HIGH_FAT": 1.0 + (0.5 * fat_norm),
+            "HIGH_FIBER": 1.0 + (0.5 * fiber_norm),
+        }
+        return priority_multipliers.get(nutrition_priority, 1.0)
 
     @staticmethod
     def _goal_multiplier(goal_type: str, food: FoodCandidate) -> float:

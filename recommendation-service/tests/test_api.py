@@ -81,7 +81,7 @@ def test_health_endpoint():
 
 
 def test_recommendations_endpoint():
-    response = client.get("/v1/recommendations", params={"limit": 1, "meal_type": "lunch"})
+    response = client.get("/v1/recommendations", params={"limit": 1, "meal_type": "MEAL_LUNCH"})
     assert response.status_code == 200
     payload = response.json()
     assert payload["data"]["recommendation_strategy"] == "content-based-filtering"

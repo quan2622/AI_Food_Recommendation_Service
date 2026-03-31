@@ -4,7 +4,8 @@
 PYTHON    := ./venv/bin/python
 PIP       := ./venv/bin/pip
 UVICORN   := ./venv/bin/python -m uvicorn
-HOST      := 192.168.30.128
+# HOST      := 192.168.30.128
+HOST      := 0.0.0.0
 PORT      := 8081
 
 # Colors for terminal output

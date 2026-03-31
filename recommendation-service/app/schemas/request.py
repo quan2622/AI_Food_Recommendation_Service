@@ -4,7 +4,8 @@ from typing import Literal
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
-MealTypeLiteral = Literal["BREAKFAST", "LUNCH", "DINNER", "SNACK"]
+MealTypeLiteral = Literal["MEAL_BREAKFAST", "MEAL_LUNCH", "MEAL_DINNER", "MEAL_SNACK"]
+NutritionPriorityLiteral = Literal["BALANCED", "HIGH_PROTEIN", "HIGH_CARBS", "HIGH_FAT", "HIGH_FIBER"]
 
 
 class RecommendationRequest(BaseModel):
@@ -14,10 +15,16 @@ class RecommendationRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=50)
     exclude_food_ids: list[int] = Field(default_factory=list)
     meal_affinity_threshold: float = Field(default=0.15, ge=0, le=1)
+    nutrition_priority: NutritionPriorityLiteral = Field(default="BALANCED")
 
     @field_validator("meal_type", mode="before")
     @classmethod
     def normalize_meal_type(cls, value: str) -> str:
+        return str(value).upper()
+
+    @field_validator("nutrition_priority", mode="before")
+    @classmethod
+    def normalize_nutrition_priority(cls, value: str) -> str:
         return str(value).upper()
 
 
