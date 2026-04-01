@@ -57,6 +57,7 @@ class UserContextRecord:
     allergy_warnings: list[str] = field(default_factory=list)
     repeat_counts: dict[int, int] = field(default_factory=dict)
     total_logs: int = 0
+    category_scores: dict[str, int] = field(default_factory=dict)  # User profile preferences by category
 
 
 class RecommendationRepository:
@@ -91,6 +92,7 @@ class RecommendationRepository:
         allergy_names = self._fetch_user_allergies(user_id)
         repeat_counts = self._fetch_repeat_counts(user_id, current_date)
         total_logs = self._fetch_total_logs(user_id)
+        category_scores = self._fetch_user_category_scores(user_id)
 
         target = NutritionVector(
             calories=float((goal_row or {}).get("targetCalories") or 0.0),
@@ -123,6 +125,7 @@ class RecommendationRepository:
         context.allergy_warnings = allergy_names
         context.repeat_counts = repeat_counts
         context.total_logs = total_logs
+        context.category_scores = category_scores
         return context
 
     def load_food_candidates(self, limit: int) -> list[FoodCandidate]:
@@ -429,6 +432,27 @@ class RecommendationRepository:
             return int((row or {}).get("total_count") or 0)
         except Exception:
             return 0
+
+    def _fetch_user_category_scores(self, user_id: int) -> dict[str, int]:
+        """Tính toán user preferences theo category dựa trên lịch sử ăn uống."""
+        sql = text(
+            f"""
+            SELECT LOWER(fc.name) AS category_name, COUNT(*) AS frequency
+            FROM {self._table('meal_items')} mi
+            JOIN {self._table('meals')} m ON m.id = mi."mealId"
+            JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
+            JOIN {self._table('foods')} f ON f.id = mi."foodId"
+            LEFT JOIN {self._table('food_categories')} fc ON fc.id = f."categoryId"
+            WHERE dl."userId" = :user_id
+            GROUP BY LOWER(fc.name)
+            """
+        )
+        try:
+            with self.engine.connect() as connection:
+                rows = connection.execute(sql, {"user_id": user_id}).mappings().all()
+            return {str(row["category_name"]): int(row["frequency"]) for row in rows if row.get("category_name")}
+        except Exception:
+            return {}
 
     def _fetch_food_meal_stats(self) -> dict[int, dict[str, Any]]:
         sql = text(

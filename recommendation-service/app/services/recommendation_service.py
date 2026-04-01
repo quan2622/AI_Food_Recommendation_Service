@@ -187,49 +187,96 @@ class RecommendationService:
             filtered.append(food)
         return filtered
 
+    @staticmethod
+    def _food_nutrition_similarity(food1: FoodCandidate, food2: FoodCandidate) -> float:
+        """Tính similarity giữa 2 món ăn dựa trên nutrition vector (cho MMR)."""
+        vec1 = food1.nutrition.as_list()
+        vec2 = food2.nutrition.as_list()
+        
+        # Cosine similarity
+        norm1 = sum(x * x for x in vec1) ** 0.5
+        norm2 = sum(x * x for x in vec2) ** 0.5
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        dot = sum(a * b for a, b in zip(vec1, vec2))
+        return dot / (norm1 * norm2)
+
+    def _mmr_rerank(
+        self,
+        scored: list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]],
+        limit: int,
+        lambda_param: float = 0.7,  # Trade-off giữa relevance và diversity
+    ) -> list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]]:
+        """Maximal Marginal Relevance re-ranking để tăng diversity."""
+        if not scored:
+            return []
+        
+        # Sắp xếp theo relevance score giảm dần
+        candidates = list(scored)
+        selected: list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]] = []
+        
+        # Chọn món đầu tiên (cao nhất)
+        selected.append(candidates.pop(0))
+        
+        while candidates and len(selected) < limit:
+            max_mmr_score = -1.0
+            best_idx = 0
+            
+            for idx, (food, breakdown, reason, tags) in enumerate(candidates):
+                relevance = breakdown.final_score
+                
+                # Tính max similarity với các món đã chọn
+                max_sim = 0.0
+                for selected_food, _, _, _ in selected:
+                    sim = self._food_nutrition_similarity(food, selected_food)
+                    max_sim = max(max_sim, sim)
+                
+                # MMR score: λ * relevance - (1-λ) * max_sim
+                mmr_score = lambda_param * relevance - (1 - lambda_param) * max_sim
+                
+                if mmr_score > max_mmr_score:
+                    max_mmr_score = mmr_score
+                    best_idx = idx
+            
+            selected.append(candidates.pop(best_idx))
+        
+        return selected
+
     def _rerank_with_diversity(
         self,
         scored: list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]],
         limit: int,
         current_time: datetime,
     ) -> list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]]:
+        # Bước 1: Sắp xếp theo score gốc
         sorted_items = sorted(scored, key=lambda item: item[1].final_score, reverse=True)
-        limited: list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]] = []
-        category_counts: Counter[str] = Counter()
-        overflow: list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]] = []
-
-        for item in sorted_items:
-            category_name = item[0].category.name or f"uncategorized-{item[0].food_id}"
-            if category_counts[category_name] >= 2 and len(limited) < 10:
-                overflow.append(item)
-                continue
-            limited.append(item)
-            category_counts[category_name] += 1
-            if len(limited) == limit:
-                break
-
-        for item in overflow:
-            if len(limited) == limit:
-                break
-            limited.append(item)
-
-        new_item_index = min(2, max(len(limited) - 1, 0))
-        new_item = next(
-            (
-                item
-                for item in sorted_items
-                if item[0].created_at
-                and self._ensure_aware(item[0].created_at) >= current_time - timedelta(days=self.settings.new_item_window_days)
-                and item[1].content_score >= 0.15
-                and item not in limited[:new_item_index + 1]
-            ),
-            None,
-        )
-        if new_item and limited:
-            limited = [item for item in limited if item[0].food_id != new_item[0].food_id]
-            limited.insert(new_item_index, new_item)
-            limited = limited[:limit]
-        return limited
+        
+        # Bước 2: Lấy top 50 để MMR có nhiều lựa chọn
+        top_candidates = sorted_items[:50]
+        
+        # Bước 3: MMR reranking (70% relevance, 30% diversity)
+        mmr_ranked = self._mmr_rerank(top_candidates, limit, lambda_param=0.7)
+        
+        # Bước 4: New item injection (giữ nguyên logic cũ)
+        if mmr_ranked:
+            new_item_index = min(2, max(len(mmr_ranked) - 1, 0))
+            new_item = next(
+                (
+                    item
+                    for item in sorted_items
+                    if item[0].created_at
+                    and self._ensure_aware(item[0].created_at) >= current_time - timedelta(days=self.settings.new_item_window_days)
+                    and item[1].content_score >= 0.15
+                    and item[0].food_id not in {s[0].food_id for s in mmr_ranked[:new_item_index + 1]}
+                ),
+                None,
+            )
+            if new_item:
+                mmr_ranked = [item for item in mmr_ranked if item[0].food_id != new_item[0].food_id]
+                mmr_ranked.insert(new_item_index, new_item)
+                mmr_ranked = mmr_ranked[:limit]
+        
+        return mmr_ranked
 
     @staticmethod
     def _popular_fallback(catalog: list[FoodCandidate], limit: int) -> list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]]:
@@ -244,12 +291,16 @@ class RecommendationService:
                 ScoreBreakdown(
                     content_score=0.0,
                     collaborative_score=0.0,
+                    popular_score=0.0,
+                    profile_score=0.0,
                     repeat_penalty=0.0,
                     final_score=0.1,
                     meal_affinity=food.meal_affinity.get("LUNCH", 0.25),
                     alpha=0.0,
                     beta=0.0,
                     gamma=0.0,
+                    delta=0.0,
+                    epsilon=0.0,
                 ),
                 "Mon duoc nhieu nguoi chon vao buoi an nay",
                 ["Popular Fallback"],
