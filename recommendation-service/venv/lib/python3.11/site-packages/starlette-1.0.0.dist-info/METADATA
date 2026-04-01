@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: starlette
-Version: 0.52.1
+Version: 1.0.0
 Summary: The little ASGI library that shines.
 Project-URL: Homepage, https://github.com/Kludex/starlette
 Project-URL: Documentation, https://starlette.dev/
@@ -38,7 +38,7 @@ Description-Content-Type: text/markdown
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Kludex/starlette/main/docs/img/starlette_dark.svg" width="420px">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Kludex/starlette/main/docs/img/starlette.svg" width="420px">
-    <img alt="starlette-logo" src="https://raw.githubusercontent.com/Kludex/starlette/main/docs/img/starlette_dark.svg">
+    <img alt="starlette-logo" src="https://raw.githubusercontent.com/Kludex/starlette/main/docs/img/starlette.svg">
   </picture>
 </p>
 

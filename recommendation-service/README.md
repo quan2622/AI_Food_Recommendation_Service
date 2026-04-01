@@ -103,3 +103,9 @@ Mức boost:
 - HIGH_CARBS → 1.0 + (0.5 × carbs_norm)
 - HIGH_FAT → 1.0 + (0.5 × fat_norm)
 - HIGH_FIBER → 1.0 + (0.5 × fiber_norm)
+
+**Dynamic Weights điều chỉnh:**
+Khi `nutrition_priority != "BALANCED"`:
+
+- Content weight (alpha) tăng thêm **0.30** (HIGH_PROTEIN/HIGH_FIBER) hoặc **0.25** (HIGH_CARBS/HIGH_FAT)
+- Collaborative weight (beta) giảm **~0.26** (tối thiểu 3%)

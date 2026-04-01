@@ -30,8 +30,25 @@ class HybridRecommender:
     ) -> ScoreBreakdown:
         content_score = self._content_score(food, context, meal_type, nutrition_priority)
         repeat_penalty = self._repeat_penalty(food.food_id, context, repeat_threshold)
-        alpha, beta, gamma = self._dynamic_weights(context.total_logs, context.goal_type, collaborative_score > 0)
-        final_score = max(0.0, min(alpha * content_score + beta * collaborative_score - gamma * repeat_penalty, 1.0))
+        
+        alpha, beta, gamma = self._dynamic_weights(
+            context.total_logs, context.goal_type, collaborative_score > 0, nutrition_priority
+        )
+        
+        # Hybrid score cơ bản
+        hybrid_score = alpha * content_score + beta * collaborative_score - gamma * repeat_penalty
+        hybrid_score = max(0.0, min(hybrid_score, 1.0))
+
+        # === BOOST MẠNH SAU HYBRID (đây là phần fix quyết định) ===
+        if nutrition_priority != "BALANCED":
+            multiplier = self._nutrition_priority_multiplier(nutrition_priority, food)
+            # ^0.65 giúp boost mạnh nhưng vẫn mượt, không làm score > 1.0
+            final_score = hybrid_score * (multiplier ** 0.65)
+        else:
+            final_score = hybrid_score
+
+        final_score = max(0.0, min(final_score, 1.0))
+
         return ScoreBreakdown(
             content_score=content_score,
             collaborative_score=collaborative_score,
@@ -48,16 +65,15 @@ class HybridRecommender:
         nutrition = food.nutrition.as_list()
         cosine = self._cosine_similarity(remaining, nutrition)
         
-        # When remaining nutrition is 0, cosine = 0, use nutrition priority as base score
         if cosine == 0.0 and sum(remaining) == 0:
-            base_score = 0.3  # Base score when no remaining nutrition
+            base_score = 0.3
         else:
             base_score = cosine
             
         goal_multiplier = self._goal_multiplier(context.goal_type, food)
         meal_affinity = food.meal_affinity.get(meal_type, 0.25)
-        nutrition_priority_multiplier = self._nutrition_priority_multiplier(nutrition_priority, food)
-        return max(0.0, min(base_score * goal_multiplier * meal_affinity * nutrition_priority_multiplier, 1.0))
+        # Không nhân nutrition_priority_multiplier ở đây vì đã có post-hybrid boost trong score()
+        return max(0.0, min(base_score * goal_multiplier * meal_affinity, 1.0))
 
     @staticmethod
     def _repeat_penalty(food_id: int, context: UserContextRecord, threshold: int = 3) -> float:
@@ -105,23 +121,33 @@ class HybridRecommender:
         return max(0.25, 1 + adjustments.get(goal_type, 0.0) - (0.05 * fat_norm if goal_type == "WEIGHT_LOSS" else 0.0))
 
     @staticmethod
-    def _dynamic_weights(total_logs: int, goal_type: str, has_cf: bool) -> tuple[float, float, float]:
+    def _dynamic_weights(
+        total_logs: int, goal_type: str, has_cf: bool, nutrition_priority: str = "BALANCED"
+    ) -> tuple[float, float, float]:
+        # Base weights by user maturity and collaborative filtering availability
         if not has_cf:
             if total_logs < 10:
                 alpha, beta, gamma = 0.95, 0.0, 0.05
             elif total_logs <= 60:
-                alpha, beta, gamma = 0.9, 0.0, 0.1
+                alpha, beta, gamma = 0.90, 0.0, 0.10
             else:
                 alpha, beta, gamma = 0.85, 0.0, 0.15
-            return alpha, beta, gamma
-
-        if total_logs < 10:
-            alpha, beta, gamma = 0.85, 0.10, 0.05
-        elif total_logs <= 60:
-            alpha, beta, gamma = 0.55, 0.35, 0.10
         else:
-            alpha, beta, gamma = 0.40, 0.50, 0.10
+            if total_logs < 10:
+                alpha, beta, gamma = 0.90, 0.05, 0.05
+            elif total_logs <= 60:
+                alpha, beta, gamma = 0.70, 0.20, 0.10
+            else:
+                alpha, beta, gamma = 0.55, 0.35, 0.10
+
+        # BOOST khi có nutrition_priority
+        if nutrition_priority != "BALANCED":
+            boost = 0.30 if nutrition_priority in ("HIGH_PROTEIN", "HIGH_FIBER") else 0.25
+            alpha = min(alpha + boost, 0.95)
+            beta = max(beta - boost * 0.85, 0.03)
+
         if goal_type == "STRICT_DIET":
             alpha = min(alpha + 0.10, 1.0)
             beta = max(beta - 0.10, 0.0)
+
         return alpha, beta, gamma
