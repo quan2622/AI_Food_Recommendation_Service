@@ -35,7 +35,7 @@ help: ## Hien thi huong dan su dung
 # -----------------------------------------------------------------------------
 setup: ## [1] Khoi tao moi truong ao va cai dat thu vien
 	@echo "$(CYAN)[PROGRESS] Dang tao moi truong ao (Python 3.11)...$(NC)"
-	@python3.11 -m venv venv
+	@python3 -m venv venv
 	@echo "$(CYAN)[PROGRESS] Dang nang cap pip va cai dat dependencies...$(NC)"
 	@$(PIP) install --upgrade pip
 	@$(PIP) install -e .[dev]

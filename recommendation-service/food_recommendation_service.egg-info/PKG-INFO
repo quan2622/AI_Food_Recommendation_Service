@@ -2,7 +2,7 @@ Metadata-Version: 2.4
 Name: food-recommendation-service
 Version: 0.1.0
 Summary: Standalone FastAPI microservice for food recommendations
-Requires-Python: >=3.11
+Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: fastapi<1.0.0,>=0.115.0
 Requires-Dist: uvicorn[standard]<1.0.0,>=0.30.0
@@ -123,5 +123,5 @@ Mức boost:
 **Dynamic Weights điều chỉnh:**
 Khi `nutrition_priority != "BALANCED"`:
 
-- Content weight (alpha) tăng thêm **0.15**
-- Collaborative weight (beta) giảm **0.15**
+- Content weight (alpha) tăng thêm **0.30** (HIGH_PROTEIN/HIGH_FIBER) hoặc **0.25** (HIGH_CARBS/HIGH_FAT)
+- Collaborative weight (beta) giảm **~0.26** (tối thiểu 3%)
