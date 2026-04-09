@@ -1,10 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def resolve_meal_time(explicit_meal_time: str | None, now: datetime | None = None) -> str:
     if explicit_meal_time:
         return explicit_meal_time
-    current_time = now or datetime.utcnow()
+    current_time = now or datetime.now(timezone.utc)
     hour = current_time.hour
     if 5 <= hour < 11:
         return "breakfast"

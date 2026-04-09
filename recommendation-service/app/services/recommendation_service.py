@@ -85,7 +85,7 @@ class RecommendationService:
 
         strategy = self._resolve_strategy(scored)
         if strategy == "popular-fallback":
-            ranked = self._popular_fallback(filtered, request.limit)
+            ranked = self._popular_fallback(filtered, request.limit, request.meal_type)
         else:
             ranked = self._rerank_with_diversity(scored, request.limit, current_time)
 
@@ -279,7 +279,7 @@ class RecommendationService:
         return mmr_ranked
 
     @staticmethod
-    def _popular_fallback(catalog: list[FoodCandidate], limit: int) -> list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]]:
+    def _popular_fallback(catalog: list[FoodCandidate], limit: int, meal_type: str = "MEAL_LUNCH") -> list[tuple[FoodCandidate, ScoreBreakdown, str, list[str]]]:
         sorted_items = sorted(
             catalog,
             key=lambda food: (food.popularity_count, -food.nutrition.calories),
@@ -295,7 +295,7 @@ class RecommendationService:
                     profile_score=0.0,
                     repeat_penalty=0.0,
                     final_score=0.1,
-                    meal_affinity=food.meal_affinity.get("LUNCH", 0.25),
+                    meal_affinity=food.meal_affinity.get(meal_type, 0.25),
                     alpha=0.0,
                     beta=0.0,
                     gamma=0.0,

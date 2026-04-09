@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any
 
@@ -154,7 +154,7 @@ class RecommendationRepository:
             LEFT JOIN {self._table('ingredient_allergens')} ia ON ia."ingredientId" = fi."ingredientId"
             LEFT JOIN {self._table('allergens')} a ON a.id = ia."allergenId"
             GROUP BY f.id, f."foodName", f.description, f."imageUrl", f."createdAt", fc.id, fc.name
-            ORDER BY f."createdAt" DESC, f.id DESC
+            ORDER BY RANDOM()
             LIMIT :limit
             """
         )
@@ -283,11 +283,15 @@ class RecommendationRepository:
 
     def summarize_food_catalog(self, limit: int = 500) -> dict[str, Any]:
         foods = self.load_food_candidates(limit)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=7)
         return {
             "foods": len(foods),
             "categories": len({food.category.name for food in foods if food.category.name}),
             "foods_with_nutrition": sum(1 for food in foods if food.nutrition.calories > 0),
-            "new_items_7d": sum(1 for food in foods if food.created_at and self._normalize_dt(food.created_at) >= datetime.now().replace(microsecond=0) - timedelta(days=7)),
+            "new_items_7d": sum(
+                1 for food in foods
+                if food.created_at and self._ensure_aware(food.created_at) >= cutoff
+            ),
         }
 
     def _fetch_user_summary(self, user_id: int) -> dict[str, Any] | None:
@@ -500,8 +504,14 @@ class RecommendationRepository:
         minimum = min(raw.values())
         maximum = max(raw.values())
         if minimum == maximum:
-            return {key: 1.0 for key in raw}
+            # Tất cả bằng nhau: nếu đều 0 thì không có CF signal, nếu > 0 thì dùng 0.5 trung tính
+            neutral = 0.0 if maximum == 0.0 else 0.5
+            return {key: neutral for key in raw}
         return {key: (value - minimum) / (maximum - minimum) for key, value in raw.items()}
+
+    @staticmethod
+    def _ensure_aware(value: datetime) -> datetime:
+        return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
     @staticmethod
     def _normalize_dt(value: datetime) -> datetime:

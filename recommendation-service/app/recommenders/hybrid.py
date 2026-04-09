@@ -153,8 +153,10 @@ class HybridRecommender:
             "WEIGHT_LOSS": (-0.3 * calories_norm) + (0.1 * protein_norm) + (0.2 * fiber_norm),
             "WEIGHT_GAIN": (0.1 * calories_norm) + (0.4 * protein_norm),
             "MAINTENANCE": 0.0,
+            # STRICT_DIET: phạt mạnh calories và fat cao, thưởng protein và fiber
+            "STRICT_DIET": (-0.5 * calories_norm) + (0.15 * protein_norm) + (0.25 * fiber_norm) - (0.10 * fat_norm),
         }
-        return max(0.25, 1 + adjustments.get(goal_type, 0.0) - (0.05 * fat_norm if goal_type == "WEIGHT_LOSS" else 0.0))
+        return max(0.25, 1 + adjustments.get(goal_type, 0.0) - (0.05 * fat_norm if goal_type in ("WEIGHT_LOSS", "STRICT_DIET") else 0.0))
 
     @staticmethod
     def _dynamic_weights(
@@ -193,5 +195,15 @@ class HybridRecommender:
         if goal_type == "STRICT_DIET":
             alpha = min(alpha + 0.10, 0.95)
             beta = max(beta - 0.10, 0.0)
+            delta = max(delta - 0.02, 0.03)
+            epsilon = max(epsilon - 0.02, 0.03)
+
+        # Normalize positive weights so they sum to 1.0 (gamma is subtracted separately)
+        total_positive = alpha + beta + delta + epsilon
+        if total_positive > 0:
+            alpha = alpha / total_positive
+            beta = beta / total_positive
+            delta = delta / total_positive
+            epsilon = epsilon / total_positive
 
         return alpha, beta, gamma, delta, epsilon
