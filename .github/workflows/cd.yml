@@ -42,7 +42,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Lowercase image name
         run: echo "IMAGE_LC=${IMAGE,,}" >> "$GITHUB_ENV"
-      - uses: docker/metadata-action@v5
+      - uses: docker/metadata-action@v6
         id: meta
         if: github.event_name != 'workflow_dispatch'
         with:
