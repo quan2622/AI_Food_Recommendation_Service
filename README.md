@@ -1,6 +1,8 @@
-# Hệ thống gợi ý món ăn theo ngữ cảnh dinh dưỡng
+# AI Food Recommendation Service
 
-Tài liệu mô tả bài toán, cơ sở lý thuyết và mô hình gợi ý lai ghép (hybrid) của dịch vụ `recommendation-service/` (Python/FastAPI). Nội dung khớp với mã nguồn hiện tại.
+Dịch vụ gợi ý món ăn theo ngữ cảnh dinh dưỡng, thuộc dự án *AI-Powered Personalized Nutrition Tracking and Analysis Application*. Dịch vụ gợi ý các món phù hợp với ngân sách dinh dưỡng còn lại trong ngày, mục tiêu sức khỏe, bữa ăn và thói quen của người dùng.
+
+Tài liệu này mô tả bài toán, cơ sở lý thuyết và mô hình gợi ý lai ghép (hybrid) của dịch vụ `recommendation-service/` (Python/FastAPI). Nội dung khớp với mã nguồn hiện tại. Hướng dẫn cài đặt, chạy và cấu hình xem [recommendation-service/README.md](recommendation-service/README.md).
 
 ---
 
