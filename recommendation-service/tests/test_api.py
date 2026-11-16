@@ -59,7 +59,9 @@ class StubService:
                         health_analysis=HealthAnalysis(
                             is_safe=True,
                             allergens_detected=[],
-                            goal_alignment=GoalAlignment(calories="Optimized", protein="Excellent", fat="Good", fiber="Normal"),
+                            goal_alignment=GoalAlignment(
+                                calories="Optimized", protein="Excellent", fat="Good", fiber="Normal"
+                            ),
                         ),
                     )
                 ],
@@ -98,4 +100,3 @@ def test_feedback_endpoint():
     )
     assert response.status_code == 202
     assert response.json()["accepted"] is True
-

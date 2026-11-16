@@ -19,7 +19,9 @@ def get_recommendations(
     limit: int = Query(default=10, ge=1, le=50),
     exclude_food_ids: list[int] = Query(default=[]),
     meal_affinity_threshold: float = Query(default=0.15, ge=0, le=1),
-    nutrition_priority: str = Query(default="BALANCED", description="BALANCED | HIGH_PROTEIN | HIGH_CARBS | HIGH_FAT | HIGH_FIBER"),
+    nutrition_priority: str = Query(
+        default="BALANCED", description="BALANCED | HIGH_PROTEIN | HIGH_CARBS | HIGH_FAT | HIGH_FIBER"
+    ),
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> RecommendationResponse:
     request = RecommendationRequest(

@@ -68,7 +68,9 @@ class HybridRecommender:
             epsilon=epsilon,
         )
 
-    def _content_score(self, food: FoodCandidate, context: UserContextRecord, meal_type: str, nutrition_priority: str = "BALANCED") -> float:
+    def _content_score(
+        self, food: FoodCandidate, context: UserContextRecord, meal_type: str, nutrition_priority: str = "BALANCED"
+    ) -> float:
         remaining = context.remaining_nutrition.as_list()
         nutrition = food.nutrition.as_list()
         cosine = self._cosine_similarity(remaining, nutrition)
@@ -97,7 +99,7 @@ class HybridRecommender:
         count = context.repeat_counts.get(food_id, 0)
         # Exponential decay: 1 - (0.85 ** count)
         # count=0 -> 0, count=1 -> 0.15, count=2 -> 0.28, count=3 -> 0.39, etc.
-        penalty = 1.0 - (0.85 ** count)
+        penalty = 1.0 - (0.85**count)
         return max(0.0, min(penalty, 1.0))
 
     @staticmethod
@@ -156,7 +158,12 @@ class HybridRecommender:
             # STRICT_DIET: phạt mạnh calories và fat cao, thưởng protein và fiber
             "STRICT_DIET": (-0.5 * calories_norm) + (0.15 * protein_norm) + (0.25 * fiber_norm) - (0.10 * fat_norm),
         }
-        return max(0.25, 1 + adjustments.get(goal_type, 0.0) - (0.05 * fat_norm if goal_type in ("WEIGHT_LOSS", "STRICT_DIET") else 0.0))
+        return max(
+            0.25,
+            1
+            + adjustments.get(goal_type, 0.0)
+            - (0.05 * fat_norm if goal_type in ("WEIGHT_LOSS", "STRICT_DIET") else 0.0),
+        )
 
     @staticmethod
     def _dynamic_weights(

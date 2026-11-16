@@ -1,0 +1,92 @@
+name: CD
+# CD TẠM TẮT: chưa có nơi deploy. Chỉ chạy tay (Actions > CD > Run workflow).
+# Khi sẵn sàng, bỏ comment 2 trigger dưới để bật tự động.
+on:
+  # push:
+  #   tags: ["v*"]
+  # workflow_run:
+  #   workflows: [CI]
+  #   branches: [main]
+  #   types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy (rollback), e.g. sha-abc1234 or latest"
+        default: latest
+permissions:
+  contents: read
+  packages: write
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+jobs:
+  publish:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Pick deploy tag
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else echo "tag=latest" >> "$GITHUB_OUTPUT"; fi
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase image name
+        run: echo "IMAGE_LC=${IMAGE,,}" >> "$GITHUB_ENV"
+      - uses: docker/metadata-action@v5
+        id: meta
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          images: ${{ env.IMAGE_LC }}
+          tags: |
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+      - uses: docker/build-push-action@v6
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          context: recommendation-service
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  deploy:
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: recommendation-service/docker-compose.prod.yml
+          target: ${{ secrets.VPS_PATH }}
+          strip_components: 1
+      - uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_TAG: ${{ needs.publish.outputs.tag }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: IMAGE_TAG
+          script: |
+            set -e
+            cd ${{ secrets.VPS_PATH }}
+            docker compose -f docker-compose.prod.yml pull recommendation-api
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            sleep 10
+            curl -fsS http://localhost:8081/health
+            docker image prune -f

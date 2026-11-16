@@ -9,7 +9,6 @@ from typing import Any
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
-
 MEAL_TYPES = ("MEAL_BREAKFAST", "MEAL_LUNCH", "MEAL_DINNER", "MEAL_SNACK")
 
 
@@ -145,14 +144,14 @@ class RecommendationRepository:
                 COALESCE(MAX(CASE WHEN LOWER(n.name) IN ('fat', 'total fat') THEN fnv.value END), 0) AS fat,
                 COALESCE(MAX(CASE WHEN LOWER(n.name) IN ('fiber', 'fibre', 'dietary fiber', 'dietary fibre') THEN fnv.value END), 0) AS fiber,
                 COALESCE(ARRAY_AGG(DISTINCT a.name) FILTER (WHERE a.name IS NOT NULL), ARRAY[]::text[]) AS allergens
-            FROM {self._table('foods')} f
-            LEFT JOIN {self._table('food_categories')} fc ON fc.id = f."categoryId"
-            LEFT JOIN {self._table('food_nutrition_profiles')} fnp ON fnp."foodId" = f.id
-            LEFT JOIN {self._table('food_nutrition_values')} fnv ON fnv."foodNutritionProfileId" = fnp.id
-            LEFT JOIN {self._table('nutrients')} n ON n.id = fnv."nutrientId"
-            LEFT JOIN {self._table('food_ingredients')} fi ON fi."foodId" = f.id
-            LEFT JOIN {self._table('ingredient_allergens')} ia ON ia."ingredientId" = fi."ingredientId"
-            LEFT JOIN {self._table('allergens')} a ON a.id = ia."allergenId"
+            FROM {self._table("foods")} f
+            LEFT JOIN {self._table("food_categories")} fc ON fc.id = f."categoryId"
+            LEFT JOIN {self._table("food_nutrition_profiles")} fnp ON fnp."foodId" = f.id
+            LEFT JOIN {self._table("food_nutrition_values")} fnv ON fnv."foodNutritionProfileId" = fnp.id
+            LEFT JOIN {self._table("nutrients")} n ON n.id = fnv."nutrientId"
+            LEFT JOIN {self._table("food_ingredients")} fi ON fi."foodId" = f.id
+            LEFT JOIN {self._table("ingredient_allergens")} ia ON ia."ingredientId" = fi."ingredientId"
+            LEFT JOIN {self._table("allergens")} a ON a.id = ia."allergenId"
             GROUP BY f.id, f."foodName", f.description, f."imageUrl", f."createdAt", fc.id, fc.name
             ORDER BY RANDOM()
             LIMIT :limit
@@ -197,9 +196,9 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT mi."foodId" AS food_id, COUNT(*) AS frequency
-            FROM {self._table('meal_items')} mi
-            JOIN {self._table('meals')} m ON m.id = mi."mealId"
-            JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
+            FROM {self._table("meal_items")} mi
+            JOIN {self._table("meals")} m ON m.id = mi."mealId"
+            JOIN {self._table("daily_logs")} dl ON dl.id = m."dailyLogId"
             WHERE dl."userId" = :user_id
             GROUP BY mi."foodId"
             ORDER BY frequency DESC, mi."foodId" ASC
@@ -228,9 +227,9 @@ class RecommendationRepository:
             f"""
             WITH user_history AS (
                 SELECT mi."foodId" AS food_id, COUNT(*)::float AS freq
-                FROM {self._table('meal_items')} mi
-                JOIN {self._table('meals')} m ON m.id = mi."mealId"
-                JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
+                FROM {self._table("meal_items")} mi
+                JOIN {self._table("meals")} m ON m.id = mi."mealId"
+                JOIN {self._table("daily_logs")} dl ON dl.id = m."dailyLogId"
                 WHERE dl."userId" = :user_id
                 GROUP BY mi."foodId"
                 ORDER BY COUNT(*) DESC
@@ -241,9 +240,9 @@ class RecommendationRepository:
                        COUNT(DISTINCT mi."foodId") AS shared_items,
                        SUM(LOG(1 + uh.freq))::float AS similarity
                 FROM user_history uh
-                JOIN {self._table('meal_items')} mi ON mi."foodId" = uh.food_id
-                JOIN {self._table('meals')} m ON m.id = mi."mealId"
-                JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
+                JOIN {self._table("meal_items")} mi ON mi."foodId" = uh.food_id
+                JOIN {self._table("meals")} m ON m.id = mi."mealId"
+                JOIN {self._table("daily_logs")} dl ON dl.id = m."dailyLogId"
                 WHERE dl."userId" <> :user_id
                 GROUP BY dl."userId"
                 HAVING COUNT(DISTINCT mi."foodId") >= :min_shared_items
@@ -254,9 +253,9 @@ class RecommendationRepository:
                 SELECT mi."foodId" AS food_id,
                        SUM(LOG(1 + mi.quantity) * n.similarity)::float AS weighted_score
                 FROM neighbors n
-                JOIN {self._table('daily_logs')} dl ON dl."userId" = n.neighbor_id
-                JOIN {self._table('meals')} m ON m."dailyLogId" = dl.id
-                JOIN {self._table('meal_items')} mi ON mi."mealId" = m.id
+                JOIN {self._table("daily_logs")} dl ON dl."userId" = n.neighbor_id
+                JOIN {self._table("meals")} m ON m."dailyLogId" = dl.id
+                JOIN {self._table("meal_items")} mi ON mi."mealId" = m.id
                 WHERE mi."foodId" = ANY(:candidate_ids)
                 GROUP BY mi."foodId"
             )
@@ -266,16 +265,20 @@ class RecommendationRepository:
         )
         try:
             with self.engine.connect() as connection:
-                rows = connection.execute(
-                    sql,
-                    {
-                        "user_id": user_id,
-                        "candidate_ids": candidate_ids,
-                        "neighbor_limit": neighbor_limit,
-                        "min_shared_items": min_shared_items,
-                        "history_limit": history_limit,
-                    },
-                ).mappings().all()
+                rows = (
+                    connection.execute(
+                        sql,
+                        {
+                            "user_id": user_id,
+                            "candidate_ids": candidate_ids,
+                            "neighbor_limit": neighbor_limit,
+                            "min_shared_items": min_shared_items,
+                            "history_limit": history_limit,
+                        },
+                    )
+                    .mappings()
+                    .all()
+                )
             raw = {int(row["food_id"]): float(row["weighted_score"]) for row in rows}
             return self._normalize_scores(raw)
         except Exception:
@@ -289,8 +292,7 @@ class RecommendationRepository:
             "categories": len({food.category.name for food in foods if food.category.name}),
             "foods_with_nutrition": sum(1 for food in foods if food.nutrition.calories > 0),
             "new_items_7d": sum(
-                1 for food in foods
-                if food.created_at and self._ensure_aware(food.created_at) >= cutoff
+                1 for food in foods if food.created_at and self._ensure_aware(food.created_at) >= cutoff
             ),
         }
 
@@ -301,9 +303,9 @@ class RecommendationRepository:
         elif self._has_column("users", "displayName"):
             name_expr = 'u."displayName"'
         elif self._has_column("users", "username"):
-            name_expr = 'u.username'
+            name_expr = "u.username"
         elif self._has_column("users", "name"):
-            name_expr = 'u.name'
+            name_expr = "u.name"
         elif self._has_column("users", "firstName") and self._has_column("users", "lastName"):
             name_expr = "TRIM(CONCAT(COALESCE(u.\"firstName\", ''), ' ', COALESCE(u.\"lastName\", '')))"
         elif self._has_column("users", "firstName"):
@@ -311,12 +313,12 @@ class RecommendationRepository:
         elif self._has_column("users", "lastName"):
             name_expr = 'u."lastName"'
         else:
-            name_expr = 'NULL'
+            name_expr = "NULL"
 
         sql = text(
             f"""
             SELECT u.id, {name_expr} AS name
-            FROM {self._table('users')} u
+            FROM {self._table("users")} u
             WHERE u.id = :user_id
             LIMIT 1
             """
@@ -329,7 +331,7 @@ class RecommendationRepository:
             return None
 
     def _fetch_active_goal(self, user_id: int, current_date: date) -> dict[str, Any] | None:
-        target_fiber_expr = 'ng."targetFiber"' if self._has_column("nutrition_goals", "targetFiber") else '0'
+        target_fiber_expr = 'ng."targetFiber"' if self._has_column("nutrition_goals", "targetFiber") else "0"
         sql = text(
             f"""
             SELECT
@@ -339,7 +341,7 @@ class RecommendationRepository:
                 ng."targetCarbs",
                 ng."targetFat",
                 {target_fiber_expr} AS "targetFiber"
-            FROM {self._table('nutrition_goals')} ng
+            FROM {self._table("nutrition_goals")} ng
             WHERE ng."userId" = :user_id
               AND DATE(ng."startDate") <= :current_date
               AND DATE(ng."endDate") >= :current_date
@@ -363,9 +365,9 @@ class RecommendationRepository:
                 COALESCE(SUM(mi.carbs), 0) AS carbs,
                 COALESCE(SUM(mi.fat), 0) AS fat,
                 COALESCE(SUM(mi.fiber), 0) AS fiber
-            FROM {self._table('daily_logs')} dl
-            JOIN {self._table('meals')} m ON m."dailyLogId" = dl.id
-            JOIN {self._table('meal_items')} mi ON mi."mealId" = m.id
+            FROM {self._table("daily_logs")} dl
+            JOIN {self._table("meals")} m ON m."dailyLogId" = dl.id
+            JOIN {self._table("meal_items")} mi ON mi."mealId" = m.id
             WHERE dl."userId" = :user_id
               AND (
                   DATE(m."mealDateTime") = :current_date
@@ -384,8 +386,8 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT a.name
-            FROM {self._table('user_allergies')} ua
-            JOIN {self._table('allergens')} a ON a.id = ua."allergenId"
+            FROM {self._table("user_allergies")} ua
+            JOIN {self._table("allergens")} a ON a.id = ua."allergenId"
             WHERE ua."userId" = :user_id
             ORDER BY a.name ASC
             """
@@ -402,9 +404,9 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT mi."foodId" AS food_id, COUNT(*) AS total_count
-            FROM {self._table('daily_logs')} dl
-            JOIN {self._table('meals')} m ON m."dailyLogId" = dl.id
-            JOIN {self._table('meal_items')} mi ON mi."mealId" = m.id
+            FROM {self._table("daily_logs")} dl
+            JOIN {self._table("meals")} m ON m."dailyLogId" = dl.id
+            JOIN {self._table("meal_items")} mi ON mi."mealId" = m.id
             WHERE dl."userId" = :user_id
               AND dl."logDate" BETWEEN :start_date AND :current_date
             GROUP BY mi."foodId"
@@ -412,10 +414,14 @@ class RecommendationRepository:
         )
         try:
             with self.engine.connect() as connection:
-                rows = connection.execute(
-                    sql,
-                    {"user_id": user_id, "start_date": start_date, "current_date": current_date},
-                ).mappings().all()
+                rows = (
+                    connection.execute(
+                        sql,
+                        {"user_id": user_id, "start_date": start_date, "current_date": current_date},
+                    )
+                    .mappings()
+                    .all()
+                )
             return {int(row["food_id"]): int(row["total_count"]) for row in rows}
         except Exception:
             return {}
@@ -424,9 +430,9 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT COUNT(*) AS total_count
-            FROM {self._table('meal_items')} mi
-            JOIN {self._table('meals')} m ON m.id = mi."mealId"
-            JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
+            FROM {self._table("meal_items")} mi
+            JOIN {self._table("meals")} m ON m.id = mi."mealId"
+            JOIN {self._table("daily_logs")} dl ON dl.id = m."dailyLogId"
             WHERE dl."userId" = :user_id
             """
         )
@@ -442,11 +448,11 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT LOWER(fc.name) AS category_name, COUNT(*) AS frequency
-            FROM {self._table('meal_items')} mi
-            JOIN {self._table('meals')} m ON m.id = mi."mealId"
-            JOIN {self._table('daily_logs')} dl ON dl.id = m."dailyLogId"
-            JOIN {self._table('foods')} f ON f.id = mi."foodId"
-            LEFT JOIN {self._table('food_categories')} fc ON fc.id = f."categoryId"
+            FROM {self._table("meal_items")} mi
+            JOIN {self._table("meals")} m ON m.id = mi."mealId"
+            JOIN {self._table("daily_logs")} dl ON dl.id = m."dailyLogId"
+            JOIN {self._table("foods")} f ON f.id = mi."foodId"
+            LEFT JOIN {self._table("food_categories")} fc ON fc.id = f."categoryId"
             WHERE dl."userId" = :user_id
             GROUP BY LOWER(fc.name)
             """
@@ -462,8 +468,8 @@ class RecommendationRepository:
         sql = text(
             f"""
             SELECT mi."foodId" AS food_id, m."mealType" AS meal_type, COUNT(*) AS total_count
-            FROM {self._table('meal_items')} mi
-            JOIN {self._table('meals')} m ON m.id = mi."mealId"
+            FROM {self._table("meal_items")} mi
+            JOIN {self._table("meals")} m ON m.id = mi."mealId"
             GROUP BY mi."foodId", m."mealType"
             """
         )
@@ -486,8 +492,7 @@ class RecommendationRepository:
         for food_id, counts in grouped.items():
             total = totals[food_id]
             affinity = {
-                meal_type: (counts.get(meal_type, 0) + 1) / (total + len(MEAL_TYPES))
-                for meal_type in MEAL_TYPES
+                meal_type: (counts.get(meal_type, 0) + 1) / (total + len(MEAL_TYPES)) for meal_type in MEAL_TYPES
             }
             results[food_id] = {"affinity": affinity, "total_count": total}
         return results
@@ -531,4 +536,3 @@ class RecommendationRepository:
 
     def _table(self, table_name: str) -> str:
         return f'"{self.schema}"."{table_name}"'
-

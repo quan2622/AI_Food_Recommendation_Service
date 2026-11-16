@@ -102,4 +102,3 @@ class HealthResponse(BaseModel):
 class FeedbackResponse(BaseModel):
     accepted: bool
     trace_id: str
-

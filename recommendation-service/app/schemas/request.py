@@ -1,8 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
-
+from pydantic import BaseModel, Field, field_validator
 
 MealTypeLiteral = Literal["MEAL_BREAKFAST", "MEAL_LUNCH", "MEAL_DINNER", "MEAL_SNACK"]
 NutritionPriorityLiteral = Literal["BALANCED", "HIGH_PROTEIN", "HIGH_CARBS", "HIGH_FAT", "HIGH_FIBER"]

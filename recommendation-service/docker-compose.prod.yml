@@ -1,0 +1,9 @@
+services:
+  recommendation-api:
+    image: ghcr.io/quan2622/ai_food_recommendation_service:${IMAGE_TAG:-latest}
+    container_name: recommendation_api
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    restart: unless-stopped

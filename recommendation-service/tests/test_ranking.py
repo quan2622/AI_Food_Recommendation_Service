@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 
-from app.db.repositories.recommendation_repository import CategoryRecord, FoodCandidate, NutritionVector, UserContextRecord
+from app.db.repositories.recommendation_repository import (
+    CategoryRecord,
+    FoodCandidate,
+    NutritionVector,
+    UserContextRecord,
+)
 from app.recommenders.hybrid import HybridRecommender
 
 
