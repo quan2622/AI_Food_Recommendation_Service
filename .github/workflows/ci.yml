@@ -33,7 +33,9 @@ jobs:
           SERVER_HOST: "0.0.0.0"
           SERVER_PORT: "8081"
           DATABASE_URL: "postgresql+psycopg://dummy:dummy@localhost:5432/dummy"
-      - run: pip install pip-audit && pip-audit
+      - name: Audit runtime dependencies
+        if: matrix.python == '3.11'
+        run: pip install pip-audit && pip-audit .
   docker:
     needs: lint-test
     runs-on: ubuntu-latest
