@@ -51,7 +51,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Ensure no .env baked in image
         run: docker run --rm --entrypoint sh rec:ci -c '! test -e /app/.env'
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: rec:ci
           severity: CRITICAL,HIGH
