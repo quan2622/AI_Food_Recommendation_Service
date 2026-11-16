@@ -8,15 +8,15 @@ Tài liệu này mô tả bài toán, cơ sở lý thuyết và mô hình gợi 
 
 ## 1. Bài toán
 
-Cho tập người dùng \(\mathcal{U}\) và tập món ăn \(\mathcal{I}\). Với mỗi người dùng \(u\), hệ thống biết:
+Cho tập người dùng $\mathcal{U}$ và tập món ăn $\mathcal{I}$. Với mỗi người dùng $u$, hệ thống biết:
 
 - mục tiêu dinh dưỡng trong ngày (`goal_type`: giảm cân, tăng cân, duy trì, chế độ chặt) và lượng đã nạp;
 - dị ứng, lịch sử chọn món, bữa ăn hiện tại (sáng/trưa/tối/phụ);
 - ưu tiên macro do người dùng chọn (`nutrition_priority`).
 
-Mỗi món \(i\) có hồ sơ dinh dưỡng (calories, protein, carbs, fat, fiber), danh mục, allergen và thống kê sử dụng.
+Mỗi món $i$ có hồ sơ dinh dưỡng (calories, protein, carbs, fat, fiber), danh mục, allergen và thống kê sử dụng.
 
-**Mục tiêu:** xây dựng hàm điểm \(S(u,i)\) để xếp hạng các món ứng viên, sao cho danh sách gợi ý vừa **khớp ngân sách dinh dưỡng còn lại và bữa ăn**, vừa **phù hợp sở thích/hành vi cộng đồng**, vừa **đa dạng**.
+**Mục tiêu:** xây dựng hàm điểm $S(u,i)$ để xếp hạng các món ứng viên, sao cho danh sách gợi ý vừa **khớp ngân sách dinh dưỡng còn lại và bữa ăn**, vừa **phù hợp sở thích/hành vi cộng đồng**, vừa **đa dạng**.
 
 **Đặc thù dữ liệu:**
 
@@ -43,52 +43,52 @@ Mỗi món \(i\) có hồ sơ dinh dưỡng (calories, protein, carbs, fat, fibe
 ### 3.1. Điểm nội dung (content-based, nhận biết dinh dưỡng)
 
 Phía "nhu cầu" không phải embedding sở thích, mà là **vector dinh dưỡng còn lại trong ngày**
-\(\mathbf{r}_u = [\text{cal}, \text{pro}, \text{carb}, \text{fat}, \text{fib}]\), so với vector dinh dưỡng của món \(\mathbf{n}_i\) bằng cosine:
+$\mathbf{r}_u = [\text{cal}, \text{pro}, \text{carb}, \text{fat}, \text{fib}]$, so với vector dinh dưỡng của món $\mathbf{n}_i$ bằng cosine:
 
-\[
-s^{\cos}(u,i) = \max\!\Bigl(0, \min\!\bigl(1, \tfrac{\mathbf{r}_u^\top \mathbf{n}_i}{\|\mathbf{r}_u\|\,\|\mathbf{n}_i\|}\bigr)\Bigr)
-\]
+$$
+s^{\cos}(u,i) = \max\Bigl(0, \min\bigl(1, \tfrac{\mathbf{r}_u^\top \mathbf{n}_i}{\lVert \mathbf{r}_u \rVert \cdot \lVert \mathbf{n}_i \rVert}\bigr)\Bigr)
+$$
 
-Điểm nền \(s^{\text{base}} = s^{\cos}\). Nếu \(s^{\cos}=0\) và \(\sum \mathbf{r}_u = 0\) (đã đủ chỉ tiêu) thì gán \(s^{\text{base}}=0{,}3\) để không triệt tiêu toàn bộ ứng viên.
+Điểm nền $s^{\text{base}} = s^{\cos}$. Nếu $s^{\cos}=0$ và $\sum \mathbf{r}_u = 0$ (đã đủ chỉ tiêu) thì gán $s^{\text{base}}=0{,}3$ để không triệt tiêu toàn bộ ứng viên.
 
 Điểm nội dung tổng hợp:
 
-\[
+$$
 s_{\text{content}} = \text{clip}_{[0,1]}\bigl(s^{\text{base}} \cdot g(u,i) \cdot a(i,m) + b_{\text{prio}}(u,i)\bigr)
-\]
+$$
 
 | Thành phần | Ý nghĩa |
 |---|---|
-| \(g(u,i)\) – `goal_multiplier` | Điều chỉnh theo mục tiêu (tối thiểu 0,25). Giảm cân: phạt calo cao, thưởng protein/chất xơ. Tăng cân: thưởng calo/protein. Chế độ chặt: phạt mạnh calo và fat, thưởng protein/chất xơ. |
-| \(a(i,m)\) – `meal_affinity` | Mức độ món \(i\) thường được dùng ở bữa \(m\), học từ lịch sử (mặc định 0,25 khi thiếu). |
-| \(b_{\text{prio}}\) – priority boost | Khi `nutrition_priority` ≠ `BALANCED`: \(0{,}4\,(m_{\text{prio}}-1)\), với \(m_{\text{prio}} = 1 + 0{,}5\cdot\text{macro\_norm}\) của macro được ưu tiên (protein/50, carbs/80, fat/35, fiber/14, cắt ở 1). |
+| $g(u,i)$ – `goal_multiplier` | Điều chỉnh theo mục tiêu (tối thiểu 0,25). Giảm cân: phạt calo cao, thưởng protein/chất xơ. Tăng cân: thưởng calo/protein. Chế độ chặt: phạt mạnh calo và fat, thưởng protein/chất xơ. |
+| $a(i,m)$ – `meal_affinity` | Mức độ món $i$ thường được dùng ở bữa $m$, học từ lịch sử (mặc định 0,25 khi thiếu). |
+| $b_{\text{prio}}$ – priority boost | Khi `nutrition_priority` ≠ `BALANCED`: $0{,}4\cdot (m_{\text{prio}}-1)$, với $m_{\text{prio}} = 1 + 0{,}5\cdot\text{macro-norm}$ của macro được ưu tiên (protein/50, carbs/80, fat/35, fiber/14, cắt ở 1). |
 
 ### 3.2. Điểm cộng tác (collaborative filtering, neighbor-based)
 
-- **Dữ liệu:** tần suất món \(f_{uj}\) từ `meal_items` / `daily_logs` (implicit).
-- **Độ tương đồng người dùng:** \(\text{sim}(u,v) \propto \sum_{j \in \mathcal{I}_u \cap \mathcal{I}_v} \log(1+f_{uj})\); lấy top láng giềng \(\mathcal{N}(u)\).
-- **Điểm thô:** \(\tilde{s}_{\text{cf}}(u,i)=\sum_{v\in\mathcal{N}(u)} \text{sim}(u,v)\cdot h_{vi}\), với \(h_{vi}=\log(1+\text{số lần } v \text{ ăn } i)\).
+- **Dữ liệu:** tần suất món $f_{uj}$ từ `meal_items` / `daily_logs` (implicit).
+- **Độ tương đồng người dùng:** $\text{sim}(u,v) \propto \sum_{j \in \mathcal{I}_u \cap \mathcal{I}_v} \log(1+f_{uj})$; lấy top láng giềng $\mathcal{N}(u)$.
+- **Điểm thô:** $\tilde{s}_{\text{cf}}(u,i)=\sum_{v\in\mathcal{N}(u)} \text{sim}(u,v)\cdot h_{vi}$, với $h_{vi}=\log(1+\text{số lần } v \text{ ăn } i)$.
 - **Chuẩn hóa min–max** trên tập ứng viên; nếu max = min thì gán 1.
 
 Đây là CF dựa user-neighbor, dễ giải thích ("nhiều người có thói quen giống bạn chọn món này"). **Không** dùng Matrix Factorization/ALS/BPR; đó là hướng mở rộng.
 
 ### 3.3. Tín hiệu bổ sung
 
-- **Phổ biến:** \(s_{\text{pop}}(i)=\min(1,\ c_i/20)\), với \(c_i\) = `popularity_count`.
-- **Profile danh mục:** \(s_{\text{prof}}(u,i)=\min(1,\ N_{u,cat(i)}/5)\), với \(N_{u,cat(i)}\) = số lần \(u\) chọn danh mục của \(i\) (0 nếu thiếu danh mục).
-- **Phạt lặp:** \(p_{\text{rep}}(u,i)=1-0{,}85^{\,n_{ui}}\), với \(n_{ui}\) = số lần chọn món gần đây (0 → 0; 3 → ≈0,39).
+- **Phổ biến:** $s_{\text{pop}}(i)=\min(1,\ c_i/20)$, với $c_i$ = `popularity_count`.
+- **Profile danh mục:** $s_{\text{prof}}(u,i)=\min(1,\ N_{u,cat(i)}/5)$, với $N_{u,cat(i)}$ = số lần $u$ chọn danh mục của $i$ (0 nếu thiếu danh mục).
+- **Phạt lặp:** $p_{\text{rep}}(u,i)=1-0{,}85^{n_{ui}}$, với $n_{ui}$ = số lần chọn món gần đây (0 → 0; 3 → ≈0,39).
 
 ---
 
 ## 4. Mô hình lai ghép (Hybrid)
 
-\[
-S_{\text{final}} = \text{clip}_{[0,1]}\bigl(\alpha\, s_{\text{content}} + \beta\, s_{\text{cf}} + \delta\, s_{\text{pop}} + \varepsilon\, s_{\text{prof}} - \gamma\, p_{\text{rep}}\bigr)
-\]
+$$
+S_{\text{final}} = \text{clip}_{[0,1]}\bigl(\alpha  s_{\text{content}} + \beta  s_{\text{cf}} + \delta  s_{\text{pop}} + \varepsilon  s_{\text{prof}} - \gamma  p_{\text{rep}}\bigr)
+$$
 
 Trọng số **động**, phụ thuộc số log bữa ăn (`total_logs`) và việc có điểm CF khác 0 (`has_cf`):
 
-| Điều kiện | \(\alpha\) | \(\beta\) | \(\gamma\) |
+| Điều kiện | $\alpha$ | $\beta$ | $\gamma$ |
 |---|---|---|---|
 | Không CF, `total_logs` < 10 | 0,90 | 0 | 0,05 |
 | Không CF, 10–60 | 0,85 | 0 | 0,10 |
@@ -97,11 +97,11 @@ Trọng số **động**, phụ thuộc số log bữa ăn (`total_logs`) và vi
 | Có CF, 10–60 | 0,65 | 0,20 | 0,10 |
 | Có CF, > 60 | 0,50 | 0,35 | 0,10 |
 
-Giá trị cơ sở: \(\delta=0{,}06\), \(\varepsilon=0{,}07\). Sau đó điều chỉnh:
+Giá trị cơ sở: $\delta=0{,}06$, $\varepsilon=0{,}07$. Sau đó điều chỉnh:
 
-- **`nutrition_priority` ≠ BALANCED:** \(\alpha\) tăng +0,30 (HIGH_PROTEIN, HIGH_FIBER) hoặc +0,25 (HIGH_CARBS, HIGH_FAT), tối đa 0,90; \(\beta\) giảm 0,85 × mức tăng (tối thiểu 0,03); \(\delta\) và \(\varepsilon\) giảm 0,02 (sàn 0,04 và 0,05).
-- **`goal_type` = STRICT_DIET:** \(\alpha\) +0,10 (tối đa 0,95), \(\beta\) −0,10, \(\delta\) và \(\varepsilon\) −0,02.
-- Cuối cùng \(\alpha,\beta,\delta,\varepsilon\) được **chuẩn hóa để tổng bằng 1**; \(\gamma\) trừ riêng.
+- **`nutrition_priority` ≠ BALANCED:** $\alpha$ tăng +0,30 (HIGH_PROTEIN, HIGH_FIBER) hoặc +0,25 (HIGH_CARBS, HIGH_FAT), tối đa 0,90; $\beta$ giảm 0,85 × mức tăng (tối thiểu 0,03); $\delta$ và $\varepsilon$ giảm 0,02 (sàn 0,04 và 0,05).
+- **`goal_type` = STRICT_DIET:** $\alpha$ +0,10 (tối đa 0,95), $\beta$ −0,10, $\delta$ và $\varepsilon$ −0,02.
+- Cuối cùng $\alpha,\beta,\delta,\varepsilon$ được **chuẩn hóa để tổng bằng 1**; $\gamma$ trừ riêng.
 
 **Luận giải:** người dùng mới (ít log, chưa có CF) dựa chủ yếu vào dinh dưỡng và bữa ăn, tránh phụ thuộc cộng đồng. Khi dữ liệu hành vi tăng, trọng số CF tăng dần. Ưu tiên macro hoặc chế độ chặt đẩy trọng số về phía khớp dinh dưỡng.
 
@@ -109,14 +109,14 @@ Giá trị cơ sở: \(\delta=0{,}06\), \(\varepsilon=0{,}07\). Sau đó điều
 
 ## 5. Tái xếp hạng
 
-- Sắp xếp theo \(S_{\text{final}}\) giảm dần.
+- Sắp xếp theo $S_{\text{final}}$ giảm dần.
 - **MMR** (Maximal Marginal Relevance) để tránh danh sách đồng nhất về dinh dưỡng:
 
-\[
-\text{MMR}(i)=\lambda\, S_{\text{final}}(u,i)-(1-\lambda)\max_{j\in\mathcal{S}}\cos(\mathbf{n}_i,\mathbf{n}_j)
-\]
+$$
+\text{MMR}(i)=\lambda  S_{\text{final}}(u,i)-(1-\lambda)\max_{j\in\mathcal{S}}\cos(\mathbf{n}_i,\mathbf{n}_j)
+$$
 
-  với \(\mathcal{S}\) là tập món đã chọn; \(\lambda\) lớn ưu tiên điểm gốc, nhỏ ưu tiên đa dạng (ví dụ \(\lambda=0{,}7\)).
+  với $\mathcal{S}$ là tập món đã chọn; $\lambda$ lớn ưu tiên điểm gốc, nhỏ ưu tiên đa dạng (ví dụ $\lambda=0{,}7$).
 - **Diversity cap** theo danh mục và **chèn món mới** (món tạo gần đây) vào khoảng vị trí thứ 3 để tăng khám phá.
 
 ---
