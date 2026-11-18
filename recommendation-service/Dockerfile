@@ -8,7 +8,9 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+ && pip uninstall -y setuptools wheel \
+ && { find / -depth \( -iname 'setuptools*' -o -iname 'pkg_resources' -o -iname 'wheel-*' \) -path '*-packages/*' -exec rm -rf {} + 2>/dev/null || true; }
 
 COPY app ./app
 
