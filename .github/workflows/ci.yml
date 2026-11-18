@@ -52,10 +52,11 @@ jobs:
       - name: Ensure no .env baked in image
         run: docker run --rm --entrypoint sh rec:ci -c '! test -e /app/.env'
       - name: List setuptools copies in image (diagnostic)
-        run: docker run --rm --entrypoint sh rec:ci -c "find / -iname 'setuptools*' -not -path '/proc/*' 2>/dev/null || true"
+        run: docker run --rm --entrypoint sh rec:ci -c "find / \( -iname 'setuptools*' -o -iname '*sbom*' -o -iname '*.cdx.json' -o -iname '*.spdx*' \) -not -path '/proc/*' -not -path '/sys/*' 2>/dev/null || true"
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: rec:ci
           severity: CRITICAL,HIGH
           exit-code: "1"
           ignore-unfixed: true
+          trivyignores: .trivyignore

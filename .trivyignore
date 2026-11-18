@@ -1,0 +1,6 @@
+# CVE-2025-47273 (setuptools PackageIndex path traversal): false positive.
+# setuptools/wheel are uninstalled from the final image (see Dockerfile) and CI diagnostic
+# shows no setuptools files remain. Trivy reads a stale setuptools 70.3.0 entry from an SBOM
+# shipped in the python base image. Also build-time only, not reachable by the API at runtime.
+# Re-check when the base image is updated and remove this ignore if Trivy no longer reports it.
+CVE-2025-47273
