@@ -74,7 +74,7 @@ jobs:
           source: recommendation-service/docker-compose.prod.yml
           target: ${{ secrets.VPS_PATH }}
           strip_components: 1
-      - uses: appleboy/ssh-action@v1.2.0
+      - uses: appleboy/ssh-action@v1.2.5
         env:
           IMAGE_TAG: ${{ needs.publish.outputs.tag }}
         with:
